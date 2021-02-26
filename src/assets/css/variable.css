@@ -1,0 +1,10 @@
+html{
+    --theme-color:  #fb7299;
+    --font-color: #505050;
+    --icon-color: #ccc;
+    --header-z-index: 100;
+    --sub-menu-z-index: 100;
+    --video-cover-z-index: 12;
+    --video-z-index: 11;
+    --card-z-index: 10;
+}
