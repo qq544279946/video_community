@@ -1,10 +1,17 @@
 <template>
   <div class="upload-view">
-    <video style="display: none" :src="videoSrc" ref="videoDom"></video>
     <div class="upload-view__header">视频发布</div>
     <div class="upload-view__form-box">
       <van-form @submit="onSubmit">
-        <van-uploader :max-count="1" accept=".mp4" :after-read="afterReadVideo">
+        <van-uploader
+          :max-count="1"
+          accept=".mp4,.flv,.webm,.ogg"
+          :compressed="false"
+          :preview-image="false"
+          :after-read="afterReadVideo"
+          :before-read="beforeReadVideo"
+          :disabled="percentage < 100 && percentage !== 0"
+        >
           <div class="upload-view__upload-btn">
             <van-button icon="plus">上传视频</van-button>
             <div class="upload-view__video-title" v-if="uploadForm.video">
@@ -12,6 +19,18 @@
             </div>
           </div>
         </van-uploader>
+        <div class="upload-msg" style="font-size: 4vw">
+          <span v-show="percentage === 100">上传成功</span>
+          <span v-show="percentage !== 0 && percentage !== 100">正在上传</span>
+          <span v-show="percentage == 0">未选择文件</span>
+        </div>
+        <van-progress
+          :percentage="percentage"
+          stroke-width="2"
+          :show-pivot="false"
+          color="#fb7299"
+        />
+
         <div class="upload-view__base-info-header">基础信息</div>
         <div class="upload-view__form-item-box">
           <div class="upload-view__form-item-box__label">封面选择</div>
@@ -19,6 +38,7 @@
             v-model="selectedPoster"
             :max-count="1"
             :after-read="afterReadPoster"
+            :before-read="beforeReadPoster"
           />
         </div>
         <div class="upload-view__form-item-box">
@@ -48,7 +68,9 @@
           <router-link to="/space">
             <van-button block native-type="button">返回</van-button>
           </router-link>
-          <van-button block native-type="submit">发布</van-button>
+          <van-button block native-type="submit" :disabled="percentage < 100"
+            >发布</van-button
+          >
         </div>
       </van-form>
     </div>
@@ -70,15 +92,38 @@
 <script>
 import { getCategory } from "../api/category";
 import { upload } from "../api/upload";
+import { getCredential } from "../api/credential";
+import COS from "cos-js-sdk-v5";
 export default {
   async created() {
+    let cos = new COS({
+      // 必选参数
+      getAuthorization: async function (options, callback) {
+        const data = await getCredential();
+        let credentials = data.credentials;
+        callback({
+          TmpSecretId: credentials.tmpSecretId,
+          TmpSecretKey: credentials.tmpSecretKey,
+          XCosSecurityToken: credentials.sessionToken,
+          // 建议返回服务器时间作为签名的开始时间，避免用户浏览器本地时间偏差过大导致签名错误
+          StartTime: data.startTime, // 时间戳，单位秒，如：1580000000
+          ExpiredTime: data.expiredTime, // 时间戳，单位秒，如：1580000900
+          ScopeLimit: true, // 细粒度控制权限需要设为 true，会限制密钥只在相同请求时重复使用
+        });
+      },
+    });
+    console.log(cos);
+    this.cos = cos;
+
     const res = await getCategory();
     console.log(res);
     this.panelOption = res.data;
   },
   data() {
     return {
-      videoSrc: "",
+      cos: null,
+      percentage: 0,
+      videoSrc: null,
 
       showPanel: false,
       panelValue: "",
@@ -94,9 +139,9 @@ export default {
 
       //   需要上传的表单数据
       uploadForm: {
-        video: null,
+        videoUrl: null,
         title: "",
-        poster: null,
+        posterUrl: null,
         category: [],
         during_time: 0,
       },
@@ -104,6 +149,7 @@ export default {
   },
   methods: {
     async onSubmit() {
+      // console.log(upload);
       const data = {
         ...this.uploadForm,
       };
@@ -111,10 +157,15 @@ export default {
       for (let key in data) {
         formData.append(key, data[key]);
       }
-      const result = await upload(formData);
+      const result = await upload(data);
       console.log("upload", result);
       if (result.code === "200") {
-        this.$router.replace("/space");
+        if(result.data === 'success'){
+          this.$message('上传成功');
+          this.$router.replace("/space");
+        }else{
+          this.$message('上传的视频无效')
+        }
       }
     },
     onFinish({ selectedOptions }) {
@@ -126,19 +177,69 @@ export default {
       this.showPanel = false;
       this.panelValue = selectedOptions.map((option) => option.name).join("/");
     },
+    beforeReadPoster(file){
+      if(!/image\//.test(file.type)){
+        this.$message('图片类型格式不正确')
+        return false;
+      }
+      return true
+    },
     afterReadPoster(fileInfo) {
-      console.log(fileInfo.file);
-      this.uploadForm.poster = fileInfo.file;
+      
+      let self = this;
+      fileInfo.status = 'uploading';
+      fileInfo.message = '上传中...';
+      this.cos.putObject(
+        {
+          Bucket: "test-1300545604" /* 必须 */,
+          Region: "ap-guangzhou" /* 存储桶所在地域，必须字段 */,
+          Key: `${new Date().getTime()}` /* 必须 */,
+          StorageClass: "STANDARD",
+          Body: fileInfo.file, // 上传文件对象
+          
+        },
+        function (err, data) {
+          console.log(err || data);
+          self.uploadForm.posterUrl = `https://${data.Location}` ;
+          fileInfo.status = 'success';
+          fileInfo.message = '上传成功';
+        }
+      );
+    },
+    beforeReadVideo(file){
+      console.log(file)
+      if(!/\.(mp4|rmvb|flv|mpeg|avi)$/.test(file.name)){
+        this.$message('视频类型格式不正确')
+        return false;
+      }
+      if(file.size > 250000000){
+        this.$message('视频大小不能超过200M')
+        return false;
+      }
+      return true;
     },
     afterReadVideo(fileInfo) {
-      console.log(fileInfo.file);
-      this.uploadForm.video = fileInfo.file;
-      this.videoSrc = URL.createObjectURL(fileInfo.file);
-
-      setTimeout(() => {
-        this.uploadForm.during_time = this.$refs.videoDom.duration;
-        console.dir(this.$refs.videoDom.duration);
-      }, 100);
+      
+      console.log(fileInfo);
+      
+      let self = this;
+      this.cos.putObject(
+        {
+          Bucket: "test-1300545604" /* 必须 */,
+          Region: "ap-guangzhou" /* 存储桶所在地域，必须字段 */,
+          Key: `${new Date().getTime()}` /* 必须 */,
+          StorageClass: "STANDARD",
+          Body: fileInfo.file, // 上传文件对象
+          onProgress: function (progressData) {
+            console.log(JSON.stringify(progressData));
+            self.percentage = progressData.percent * 100;
+          },
+        },
+        function (err, data) {
+          console.log(err || data);
+          self.uploadForm.videoUrl = `https://${data.Location}`;
+        }
+      );
     },
   },
 };

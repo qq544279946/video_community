@@ -13,8 +13,19 @@ import {
     Field,
     Uploader,
     Cascader,
-    Toast 
+    Toast,
+    Progress,
+    Lazyload,
+    Popover
 } from 'vant'
+
+import ColorPicker  from 'heyui/lib/components/color-picker';
+import Slider from 'heyui/lib/components/slider'
+Vue.component('ColorPicker', ColorPicker);
+Vue.component('Slider', Slider);
+Vue.use(Lazyload);
+Vue.use(Progress);
+Vue.use(Popover);
 
 Vue.use(Button)
 Vue.use(Tab)

@@ -4,6 +4,8 @@ let prefix = '';
 
 if (process.env.NODE_ENV === 'development') {
     prefix = '/api'
+}else{
+    prefix = `http://192.168.1.198:3000`
 }
 
 // 登录
@@ -55,6 +57,36 @@ export function registerUser(data) {
 export function searchUsers(data) {
     return axios({
         url: `${prefix}/api/searchUsers`,
+        method: 'get',
+        params: data
+    })
+
+}
+
+// 关注用户
+export function watchUser(data) {
+    return axios({
+        url: `${prefix}/api/watchUser`,
+        method: 'post',
+        data: data
+    })
+
+}
+
+// 获取用户的粉丝和关注量
+export function getWatchsAndFans(data) {
+    return axios({
+        url: `${prefix}/api/getWatchsAndFans`,
+        method: 'get',
+        params: data
+    })
+
+}
+
+// 是否已关注
+export function isWatchUser(data) {
+    return axios({
+        url: `${prefix}/api/isWatchUser`,
         method: 'get',
         params: data
     })

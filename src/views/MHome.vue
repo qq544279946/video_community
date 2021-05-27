@@ -1,6 +1,6 @@
 <template>
   <div class="m-home">
-    <div class="banner">
+    <div class="banner" style="display:none;">
       <picture>
         <img
           src="@/assets/imgs/186673b089ce18a7164b040dba4055d0bdc65848.jpg"

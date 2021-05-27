@@ -13,18 +13,18 @@ export default {
             name: "动画",
             index: 2,
         },
-        // {
-        //     name: "音乐",
-        //     index: 3,
-        // },
-        // {
-        //     name: "游戏",
-        //     index: 4,
-        // },
-        // {
-        //     name: "知识",
-        //     index: 5,
-        // },
+        {
+            name: "音乐",
+            index: 3,
+        },
+        {
+            name: "游戏",
+            index: 4,
+        },
+        {
+            name: "知识",
+            index: 5,
+        },
 
     ],
     // 次导航的数据
@@ -55,6 +55,66 @@ export default {
             {
                 name: "完结",
                 index: 2,
+            },
+
+        ],
+        [
+
+            {
+                name: "推荐",
+                index: 0,
+            },
+            {
+                name: "原创",
+                index: 1,
+            },
+            {
+                name: "翻唱",
+                index: 2,
+            },
+
+        ],
+        [
+
+            {
+                name: "推荐",
+                index: 0,
+            },
+            {
+                name: "端游",
+                index: 1,
+            },
+            {
+                name: "手游",
+                index: 2,
+            },
+            {
+                name: "电子竞技",
+                index: 3,
+            },
+
+        ],
+        [
+
+            {
+                name: "推荐",
+                index: 0,
+            },
+            {
+                name: "科学科普",
+                index: 1,
+            },
+            {
+                name: "校园学习",
+                index: 2,
+            },
+            {
+                name: "财经",
+                index: 3,
+            },
+            {
+                name: "职场",
+                index: 4,
             },
 
         ]

@@ -10,5 +10,10 @@ module.exports = {
                 }
             }
         }
+    },
+    configureWebpack: {
+        externals: {
+            Hls: 'Hls'
+        }
     }
 }

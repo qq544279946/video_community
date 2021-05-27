@@ -4,6 +4,11 @@ import router from './router'
 import store from './store'
 import './permission.js'
 
+
+
+Vue.config.ignoredElements = [
+  'e-player'
+]
 // 引入ui组件
 import './plugin/index.js'
 

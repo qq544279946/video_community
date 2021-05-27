@@ -4,16 +4,59 @@
     <div class="video-player" ref="videoPlayerDom">
       <div class="video-player__container">
         <picture>
-          <img :src="videoInfo.imgSrc" alt="" style="display: none" />
+          <img
+            :src="videoInfo.imgSrc | handleImgSrc"
+            alt=""
+            style="display: none"
+          />
         </picture>
         <div class="video-player__player">
+          <div class="danmu">
+            <canvas class="danmu__canvas" ref="canvas"></canvas>
+          </div>
           <div class="video-player__video-wrap">
-            <video
+            <e-player
               :src="videoInfo.videoSrc"
-              :poster="videoInfo.imgSrc"
-              controls
-              preload="metadata"
-            ></video>
+              ref="video2"
+              :poster="videoInfo.imgSrc | handleImgSrc"
+            >
+            </e-player>
+          </div>
+          <div class="danmu-bar">
+            <div class="left">
+              <van-field
+                v-model="danmu"
+                type="danmu"
+                name="danmu"
+                placeholder="发送弹幕"
+                @keyup.enter="sendDanmu"
+              />
+              <ColorPicker
+                v-model="color"
+                :disabled="disabled"
+                :colorType="colorType"
+                :useConfirm="useConfirm"
+              ></ColorPicker>
+              <van-button
+                block
+                @click="sendDanmu"
+                style="width: 20vw; margin-left: 0.5vw"
+                >发送</van-button
+              >
+            </div>
+            <div class="right">
+              <van-popover
+                v-model="showPopover"
+                trigger="click"
+                :actions="actions"
+                @select="onSelect"
+                placement="left-start"
+              >
+                <template #reference>
+                  <van-button style="margin-left: 0.5vw">弹幕数</van-button>
+                </template>
+              </van-popover>
+            </div>
           </div>
         </div>
       </div>
@@ -45,8 +88,11 @@
                 </div>
               </div>
             </div>
-            <div class="video-player__info__fold-container__up__follow">
-              <van-button plain block color="#fb7299"
+            <div
+              class="video-player__info__fold-container__up__follow"
+              :class="{ isWatch: isWatch }"
+            >
+              <van-button plain block @click="watchUser"
                 ><i class="iconfont ic_add1"></i> 关注</van-button
               >
             </div>
@@ -82,8 +128,17 @@
           }}</span>
         </span>
         <span class="right">
-          <span> <i class="iconfont dianzan"></i>3777 </span>
-          <span> <i class="iconfont icon_fav"></i>2521 </span>
+          <span @click="like">
+            <i class="iconfont dianzan" :class="{ 'click-color': isLike }"></i
+            >{{ videoInfo.likeCount }}
+          </span>
+          <span @click="userCollectVideo">
+            <i
+              class="iconfont icon_fav"
+              :class="{ 'click-color': isCollect }"
+            ></i
+            >{{ collectCount }}
+          </span>
         </span>
       </div>
       <div class="video-player__nav">
@@ -92,7 +147,10 @@
       <div class="video-comment-list">
         <div class="video-comment" v-for="item in commentList" :key="item.id">
           <div class="video-comment__left">
-            <router-link :to="`/space/${item.from_uid}`" class="video-comment__from-user-avator">
+            <router-link
+              :to="`/space/${item.from_uid}`"
+              class="video-comment__from-user-avator"
+            >
               <img src="../assets/imgs/face_login.jpg" alt="" />
             </router-link>
           </div>
@@ -106,7 +164,10 @@
             <div class="video-comment__content">
               <span v-if="item.to_uid"
                 >回复
-                <router-link :to="`/space/${item.to_uid}`" class="video-comment__to-user-name">@{{ item.to_uname }}</router-link
+                <router-link
+                  :to="`/space/${item.to_uid}`"
+                  class="video-comment__to-user-name"
+                  >@{{ item.to_uname }}</router-link
                 >:</span
               >
               {{ item.content }}
@@ -140,9 +201,17 @@
 import Header from "../components/layout/Header";
 import Nav from "../components/layout/Nav";
 import navData from "../assets/js/navData";
-import { getViewInfoByVideoId, playCountAdd } from "../api/video";
+import { getViewInfoByVideoId, playCountAdd, like, isLike } from "../api/video";
 import { getCommentByVideoId } from "../api/comment";
+import { watchUser, isWatchUser } from "../api/user";
+import { userCollectVideo, isCollect, getCollectCount } from "../api/collect";
+// import CanvasBarrage from "../utils/CanvasBarrage";
+import Danmu from "../eplayer/danmu.js";
+import { sendDanmu, getDanmu } from "../api/danmu.js";
 import { mapState } from "vuex";
+
+import "heyui/themes/index.less";
+
 export default {
   components: {
     Header: Header,
@@ -157,9 +226,76 @@ export default {
     });
     if (result.code === "200") {
       this.videoInfo = result.data.videoInfo;
+      this.videoInfo.videoSrc += "_transcode_100010.mp4";
       this.userInfo = result.data.userInfo;
     }
+
+    if (this.user) {
+      this.isWatchUser({
+        from_uid: this.user.id,
+        to_uid: this.userInfo.user_id,
+      });
+      this.isUserCollect({
+        from_uid: this.user.id,
+        video_id: this.videoInfo.video_id,
+      });
+    }
+    this.getCollectCount();
+    this.userIsLike();
     playCountAdd(this.video_id);
+  },
+  async mounted() {
+    let danmuData = [];
+    let result = await this.getDanmu();
+    if (result.code == 200) {
+      danmuData = result.data;
+    }
+    this.actions = danmuData.map((item) => {
+      let h = parseInt(item.time / 60 / 60);
+      let m = parseInt(item.time / 60);
+      let s = parseInt(item.time % 60);
+      return { text: `时间: ${h}:${m}:${s} ${item.value}`, time: item.time };
+    });
+    let { canvas, video2 } = this.$refs;
+    console.dir(video2);
+    let innerVideo = video2.video;
+    console.dir(innerVideo, "video");
+    let dm = new Danmu(canvas, innerVideo, danmuData);
+    this.danmuSystem = dm;
+    this.videoPlayer = innerVideo;
+    innerVideo.addEventListener("play", function () {
+      dm.play();
+    });
+    innerVideo.addEventListener("pause", function () {
+      dm.pause();
+    });
+    innerVideo.addEventListener("seeked", function () {
+      dm.reset();
+    });
+
+    // 操作历史记录
+    let obStr = localStorage.getItem("video_history");
+    let ob = {};
+    if (obStr) {
+      ob = JSON.parse(obStr);
+    }
+    console.log(ob, ob[this.video_id]);
+    if (ob[this.video_id]) {
+      this.videoPlayer.currentTime = ob[this.video_id];
+    }
+    // let canvasBarrage = new CanvasBarrage(canvas, video, {
+    //   data: danmuData,
+    // });
+    // console.log(canvasBarrage);
+  },
+  beforeDestroy() {
+    let obStr = localStorage.getItem("video_history");
+    let ob = {};
+    if (obStr) {
+      ob = JSON.parse(obStr);
+    }
+    ob[this.videoInfo.video_id] = this.videoPlayer.currentTime;
+    localStorage.setItem("video_history", JSON.stringify(ob));
   },
   data() {
     return {
@@ -167,6 +303,24 @@ export default {
       videoInfo: {},
       userInfo: {},
       commentList: [],
+      // 是否已经关注
+      isWatch: false,
+      isCollect: false,
+      isLike: false,
+
+      collectCount: 0,
+
+      danmu: "",
+
+      // 颜色选择器属性
+      colorType: "rgb",
+      disabled: false,
+      useConfirm: false,
+      color: "#fff",
+
+      showPopover: false,
+      // 通过 actions 属性来定义菜单选项
+      actions: [{ text: "选项一" }, { text: "选项二" }, { text: "选项三" }],
     };
   },
   computed: {
@@ -178,6 +332,81 @@ export default {
     },
   },
   methods: {
+    onSelect(action) {
+      console.log(action);
+      this.videoPlayer.currentTime = action.time;
+    },
+    // 获取弹幕
+    async getDanmu() {
+      let result = await getDanmu({ video_id: this.video_id });
+      console.log(result);
+      return result;
+    },
+    // 发送弹幕
+    async sendDanmu() {
+      if (this.danmu == "") {
+        this.$message("弹幕不能为空");
+        return;
+      }
+      if (!this.user) {
+        this.$message("请先登录");
+        this.$router.replace("/login");
+        return;
+      }
+
+      console.log(this.videoPlayer.currentTime);
+      let data = {
+        value: this.danmu,
+        time: this.videoPlayer.currentTime,
+        color: this.color,
+      };
+      this.danmuSystem.add(data);
+      this.danmu = "";
+
+      data.video_time = data.time;
+      data.video_id = this.video_id;
+      data.user_id = this.user.id;
+      let h = parseInt(data.time / 60 / 60);
+      let m = parseInt(data.time / 60);
+      let s = parseInt(data.time % 60);
+      this.actions.push({ text: `时间: ${h}:${m}:${s} ${data.value}`, time: data.time });
+      let result = await sendDanmu(data);
+      console.log(result);
+    },
+    // 点赞
+    async like() {
+      if (!this.user) {
+        this.$router.push("/login");
+        return;
+      }
+      let result = await like({
+        user_id: this.user.id,
+        video_id: this.videoInfo.video_id,
+      });
+      console.log(result);
+      if (result.data === true) {
+        this.videoInfo.likeCount++;
+        this.isLike = true;
+      } else if (result.data === false) {
+        this.videoInfo.likeCount--;
+        this.isLike = false;
+      }
+    },
+    async userIsLike() {
+      if (!this.user) {
+        return;
+      }
+      let result = await isLike({
+        user_id: this.user.id,
+        video_id: this.videoInfo.video_id,
+      });
+      console.log(result);
+      if (result.data === true) {
+        this.isLike = true;
+      } else if (result.data === false) {
+        this.isLike = false;
+      }
+    },
     showMoreInfo() {
       this.$refs.videoPlayerDom.classList.toggle("spread");
     },
@@ -190,6 +419,61 @@ export default {
         this.commentList = result.data;
       }
     },
+    async watchUser() {
+      if (!this.user) {
+        this.$router.push("/login");
+        return;
+      }
+      let result = await watchUser({
+        from_uid: this.user.id,
+        to_uid: this.userInfo.user_id,
+      });
+      if (result.code === "200") {
+        if (result.result) {
+          this.isWatch = true;
+        } else {
+          this.isWatch = false;
+        }
+        this.$message(result.msg);
+      }
+    },
+    async isWatchUser(data) {
+      let result = await isWatchUser(data);
+      this.isWatch = result.data;
+    },
+    async userCollectVideo() {
+      if (!this.user) {
+        this.$router.push("/login");
+        return;
+      }
+      let result = await userCollectVideo({
+        from_uid: this.user.id,
+        to_uid: this.userInfo.user_id,
+        video_id: this.videoInfo.video_id,
+      });
+      if (result.code === "200") {
+        this.isCollect = result.data;
+        if (result.data) {
+          this.collectCount++;
+        } else {
+          this.collectCount--;
+        }
+      }
+    },
+
+    async isUserCollect(data) {
+      let result = await isCollect(data);
+      this.isCollect = result.data;
+    },
+
+    async getCollectCount() {
+      let res = await getCollectCount({
+        video_id: this.video_id,
+      });
+      if (res.code === "200") {
+        this.collectCount = res.data;
+      }
+    },
   },
   filters: {
     dateFormat(value) {
@@ -198,6 +482,9 @@ export default {
         date.getMonth() + 1
       }-${date.getDate()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
       return dateStr;
+    },
+    handleImgSrc(src) {
+      return `${src}/middle`;
     },
   },
 };
@@ -240,12 +527,12 @@ export default {
 }
 
 .video-player__player {
-  z-index: var(--video-z-index);
+  /* z-index: var(--video-z-index); */
   position: absolute;
   left: 0;
   top: 0;
-  height: 100%;
-  width: 100%;
+  right: 0;
+  bottom: 0;
 }
 
 .video-player__video-wrap {
@@ -260,7 +547,7 @@ export default {
 }
 
 .video-player__info {
-  margin-top: 2.66667vw;
+  margin-top: 13.66667vw;
   padding: 0 3.2vw;
 }
 
@@ -316,6 +603,14 @@ export default {
   padding: 0;
   border-radius: 1.06667vw;
   font-size: 3.46667vw;
+  background-color: var(--theme-color);
+  color: #fff;
+  border: 1px solid var(--theme-color);
+}
+
+.video-player__info__fold-container__up__follow.isWatch >>> .van-button--plain {
+  background-color: #fff;
+  color: var(--theme-color);
 }
 
 .video-player__info__fold-container__data {
@@ -421,7 +716,7 @@ export default {
   position: relative;
 }
 
-.video-comment-list{
+.video-comment-list {
   padding-bottom: 13vw;
 }
 .video-comment {
@@ -503,5 +798,39 @@ export default {
   justify-content: center;
   color: var(--theme-color);
   font-size: 3.5vw;
+}
+
+.video-player__toolbar .right > span .click-color {
+  color: var(--theme-color);
+}
+
+.danmu {
+  z-index: 10000;
+  position: absolute;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+}
+
+.danmu__canvas {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.danmu-bar {
+  display: flex;
+  padding: 0.5vw 0;
+}
+
+.danmu-bar .left {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-basis: 80vw;
+}
+.danmu-bar .right {
+  margin-left: 1vw;
+  flex-basis: 20vw;
 }
 </style>

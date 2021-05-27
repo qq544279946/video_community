@@ -11,7 +11,7 @@
       <router-link :to="`/video?video_id=${item.video_id}`">
         <div class="video-list-item">
         <div class="video-list-item__card">
-          <img :src="item.imgSrc" alt="" />
+          <img :src="item.imgSrc | handleImgSrc" alt="" />
           <div class="video-list-item__count">
             <span class="video-list-item__inner">
               <i class="iconfont icon_shipin_bofangshu"></i>
@@ -60,6 +60,11 @@ export default {
     handleMoreEvent(){
       this.$emit('getmoreindex', this.moreValue)
     }
+  },
+  filters: {
+    handleImgSrc(src){
+      return `${src}/small`
+    }
   }
 };
 </script>
@@ -102,6 +107,7 @@ export default {
 }
 
 .video-list-item__card {
+  background-color: rgb(245, 245, 245);
   height: 27.31vw;
   z-index: var(--card-z-index);
   position: relative;

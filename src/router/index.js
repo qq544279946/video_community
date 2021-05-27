@@ -49,42 +49,42 @@ const routes = [{
   {
     path: '/space',
     name: 'space',
-    component: () => import( /* webpackChunkName: "about" */ '../views/Space.vue')
+    component: () => import( /* webpackChunkName: "space" */ '../views/Space.vue')
   },
   {
     path: '/space/:id',
     name: 'space2',
-    component: () => import( /* webpackChunkName: "about" */ '../views/Space.vue')
+    component: () => import( /* webpackChunkName: "space" */ '../views/Space.vue')
   },
   {
     path: '/search',
     name: 'search',
-    component: () => import( /* webpackChunkName: "about" */ '../views/Search.vue')
+    component: () => import( /* webpackChunkName: "search" */ '../views/Search.vue')
   },
   {
     path: '/comment',
     name: 'comment',
-    component: () => import( /* webpackChunkName: "about" */ '../views/Comment.vue')
+    component: () => import( /* webpackChunkName: "comment" */ '../views/Comment.vue')
   },
   {
     path: '/video',
     name: 'video',
-    component: () => import( /* webpackChunkName: "about" */ '../views/VideoView.vue')
+    component: () => import( /* webpackChunkName: "video" */ '../views/VideoView.vue')
   },
   {
     path: '/login',
     name: 'login',
-    component: () => import( /* webpackChunkName: "about" */ '../views/Login.vue')
+    component: () => import( /* webpackChunkName: "login" */ '../views/Login.vue')
   },
   {
     path: '/register',
     name: 'register',
-    component: () => import( /* webpackChunkName: "about" */ '../views/Register.vue')
+    component: () => import( /* webpackChunkName: "register" */ '../views/Register.vue')
   },
   {
     path: '/upload',
     name: 'upload',
-    component: () => import( /* webpackChunkName: "about" */ '../views/Upload.vue')
+    component: () => import( /* webpackChunkName: "upload" */ '../views/Upload.vue')
   },
   {
     path: '/*',

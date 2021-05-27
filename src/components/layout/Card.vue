@@ -2,7 +2,7 @@
   <router-link class="card" :to="`/video?video_id=${cardData.video_id}`" v-if="cardData">
     <div class="card__pic">
       <img
-        :src="cardData.imgSrc"
+        :src="cardData.imgSrc | handleImgSrc"
         alt=""
       />
       <span class="card__pic__duration">{{cardData.during_time | duringTimeFormat}}</span>
@@ -30,6 +30,9 @@ export default {
       let minutes = parseInt(seconds / 60);
       seconds = seconds % 60;
       return (minutes + '').padStart(2, '0') + ':' + (seconds + '').padStart(2, '0');
+    },
+    handleImgSrc(src){
+      return `${src}/small`
     }
   }
 };

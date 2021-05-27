@@ -4,6 +4,8 @@ let prefix = '';
 
 if(process.env.NODE_ENV === 'development'){
     prefix = '/api'
+}else{
+    prefix = `http://192.168.1.198:3000`
 }
 
 // 首页推荐
@@ -68,6 +70,31 @@ export function getMoreVideoListByCategory(data){
 export function searchVideo(data){
     return axios({
         url: `${prefix}/api/searchVideo`,
+        method: 'get',
+        params: data
+    })
+}
+
+// 点赞
+export function like(data){
+    return axios({
+        url: `${prefix}/api/like`,
+        method: 'post',
+        data: data
+    })
+}
+
+export function isLike(data){
+    return axios({
+        url: `${prefix}/api/isLike`,
+        method: 'post',
+        data: data
+    })
+}
+
+export function getLikeCount(data){
+    return axios({
+        url: `${prefix}/api/getLikeCount`,
         method: 'get',
         params: data
     })

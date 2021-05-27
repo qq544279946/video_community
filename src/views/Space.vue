@@ -11,17 +11,17 @@
       <div class="space__relation">
         <div class="space__count">
           <span class="space__count__fans">
-            <div class="space__count__num">1</div>
+            <div class="space__count__num">{{fansCount}}</div>
             <div class="space__count__type">粉丝</div>
           </span>
           <span class="space__count__split"></span>
           <span class="space__count__follow">
-            <div class="space__count__num">1</div>
+            <div class="space__count__num">{{watchsCount}}</div>
             <div class="space__count__type">关注</div>
           </span>
           <span class="space__count__split"></span>
           <span class="space__count__likes">
-            <div class="space__count__num">1</div>
+            <div class="space__count__num">{{hasLike}}</div>
             <div class="space__count__type">获赞</div>
           </span>
         </div>
@@ -34,9 +34,7 @@
             v-if="isMySpace"
             >编辑资料</van-button
           >
-          <van-button block color="#fb7299" v-if="!isMySpace"
-            >+关注</van-button
-          >
+          <van-button block color="#fb7299" v-if="!isMySpace" @click="watchUser">+关注</van-button>
         </div>
       </div>
     </div>
@@ -90,11 +88,7 @@
       <span>视频</span>
 
       <router-link to="/upload">
-        <van-button
-          plain
-          block
-          @click="showPersonalInfoPanel"
-          v-if="isMySpace"
+        <van-button plain block @click="showPersonalInfoPanel" v-if="isMySpace"
           >视频发布</van-button
         ></router-link
       >
@@ -115,8 +109,14 @@ import Header from "../components/layout/Header";
 import Card from "../components/layout/Card";
 import { mapState } from "vuex";
 
-import { updateUserInfo, logout, getUserInfo } from "../api/user";
-import { getVideoListByUserId } from "../api/video";
+import {
+  updateUserInfo,
+  logout,
+  getUserInfo,
+  getWatchsAndFans,
+  watchUser,
+} from "../api/user";
+import { getVideoListByUserId, getLikeCount } from "../api/video";
 export default {
   components: {
     Header: Header,
@@ -129,16 +129,10 @@ export default {
       userId = this.user.id;
     }
     console.log("user", userId);
-    let result = await getVideoListByUserId(userId);
-    console.log(result);
-    if (result.code === "200") {
-      this.cardDataList = result.data;
-    }
-    result = await getUserInfo(userId);
-    console.log(result);
-    if (result.code === "200") {
-      this.userInfo = result.data;
-    }
+    this.getVideoList(userId);
+    this.getUserInfo(userId);
+    this.getWatchsAndFans(userId);
+    this.getLikeCount({user_id: userId})
   },
   data() {
     return {
@@ -146,6 +140,11 @@ export default {
       editInfo: {},
       userInfo: {},
       cardDataList: [],
+
+      // 关注和粉丝量
+      fansCount: 0,
+      watchsCount: 0,
+      hasLike: 0
     };
   },
   computed: {
@@ -182,7 +181,6 @@ export default {
       if (result.code === "200") {
         this.$store.commit("setUser", result.data);
       }
-
       this.backSpace();
     },
 
@@ -194,6 +192,52 @@ export default {
         this.$router.replace("/m/home");
       }
     },
+
+    // 获取视频列表
+    async getVideoList(userId) {
+      let result = await getVideoListByUserId(userId);
+      console.log(result);
+      if (result.code === "200") {
+        this.cardDataList = result.data;
+      }
+    },
+    // 获取用户信息
+    async getUserInfo(userId) {
+      let result = await getUserInfo(userId);
+      console.log(result);
+      if (result.code === "200") {
+        this.userInfo = result.data;
+      }
+    },
+
+    // 获取粉丝和关注量
+    async getWatchsAndFans(userId) {
+      let result = await getWatchsAndFans({
+        user_id: userId
+      });
+      console.log(result);
+      if(result.code === '200'){
+        this.fansCount = result.data.fansCount;
+        this.watchsCount = result.data.watchsCount;
+      }
+    },
+    async getLikeCount(data){
+      let res = await getLikeCount(data);
+      console.log(res);
+      this.hasLike = res.data;
+    },
+    async watchUser(){ 
+      if(this.user){
+        await watchUser({
+        from_uid: this.user.id,
+        to_uid: this.$route.params.id,
+      })
+      }else{
+        this.$message('请先登录')
+        this.$router.push('/login')
+      }
+      
+    }
   },
 };
 </script>
